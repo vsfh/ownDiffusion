@@ -1,11 +1,8 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from typing import Optional, Tuple, Union
 import numpy as np
-import functools
-import inspect
-from utils import autoargs, betas_for_alpha_bar
+from ..utils import *
 
 
 class DDIM_schedule():

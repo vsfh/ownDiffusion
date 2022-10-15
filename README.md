@@ -3,6 +3,6 @@
 ## ToDo
 
 - [ ] ddim pipeline
-- [ ] schedule
+- [x] schedule
 - [ ] unet
 - [ ] trainer
