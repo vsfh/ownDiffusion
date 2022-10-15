@@ -5,15 +5,7 @@ from typing import Optional, Tuple, Union
 import numpy as np
 import functools
 import inspect
-
-def autoargs(self: object, locals: object) -> dict:
-    ''' Put this line in the __init__ method of a class:
-    self.__dict__ = autoargs(self, locals())
-    to auto-attributes args to class '''
-    kwargs = locals
-    kwargs.pop('self')  # remove `self` keywork from the dict
-    self.__dict__.update(kwargs)
-    return self.__dict__
+from utils import autoargs, betas_for_alpha_bar
 
 
 class DDIM_schedule():
@@ -117,10 +109,7 @@ class DDIM_schedule():
             num_inference_steps (`int`):
                 the number of diffusion steps used when generating samples with a pre-trained model.
         """
-        deprecated_offset = deprecate(
-            "offset", "0.7.0", "Please pass `steps_offset` to `__init__` instead.", take_from=kwargs
-        )
-        offset = deprecated_offset or self.steps_offset
+        offset = self.steps_offset
 
         self.num_inference_steps = num_inference_steps
         step_ratio = self.num_train_timesteps // self.num_inference_steps
@@ -139,7 +128,7 @@ class DDIM_schedule():
         use_clipped_model_output: bool = False,
         generator=None,
         return_dict: bool = True,
-    ) -> Union[Tuple]:
+    ):
         """
         Predict the sample at the previous timestep by reversing the SDE. Core function to propagate the diffusion
         process from the learned model outputs (most often the predicted noise).
@@ -216,7 +205,7 @@ class DDIM_schedule():
         if not return_dict:
             return (prev_sample,)
 
-        return DDIMSchedulerOutput(prev_sample=prev_sample, pred_original_sample=pred_original_sample)
+        return {'prev_sample':prev_sample, 'pred_original_sample':pred_original_sample}
 
     def add_noise(
         self,
