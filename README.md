@@ -2,8 +2,7 @@
 
 ## ToDo
 
-- [] ddim pipeline
-  |
-  - [] schedule
-  - [] unet
-  - [] trainer
+- [ ] ddim pipeline
+- [ ] schedule
+- [ ] unet
+- [ ] trainer
