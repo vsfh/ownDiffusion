@@ -24,7 +24,6 @@ class InpaintingPipeline(DiffusionPipeline):
     @torch.no_grad()
     def __call__(
         self,
-        prompt: Union[str, List[str]],
         init_image: torch.FloatTensor,
         mask_image: torch.FloatTensor,
         strength: float = 0.8,
@@ -35,15 +34,8 @@ class InpaintingPipeline(DiffusionPipeline):
         output_type: Optional[str] = "pil",
     ):
 
-        if isinstance(prompt, str):
-            batch_size = 1
-        elif isinstance(prompt, list):
-            batch_size = len(prompt)
-        else:
-            raise ValueError(f"`prompt` has to be of type `str` or `list` but is {type(prompt)}")
+        batch_size = init_image.shape[0]
 
-        if strength < 0 or strength > 1:
-            raise ValueError(f"The value of strength should in [0.0, 1.0] but is {strength}")
 
         # set timesteps
         accepts_offset = "offset" in set(inspect.signature(self.scheduler.set_timesteps).parameters.keys())
@@ -58,21 +50,12 @@ class InpaintingPipeline(DiffusionPipeline):
         # preprocess image
         init_image = preprocess_image(init_image).to(self.device)
 
-        # encode the init image into latents and scale the latents
-        init_latent_dist = self.vae.encode(init_image).latent_dist
-        init_latents = init_latent_dist.sample(generator=generator)
-        init_latents = 0.18215 * init_latents
-
-        # prepare init_latents noise to latents
-        init_latents = torch.cat([init_latents] * batch_size)
-        init_latents_orig = init_latents
-
         # preprocess mask
         mask = preprocess_mask(mask_image).to(self.device)
         mask = torch.cat([mask] * batch_size)
 
         # check sizes
-        if not mask.shape == init_latents.shape:
+        if not mask.shape == init_image.shape:
             raise ValueError(f"The mask and init_image should be the same size!")
 
         # get the original timestep using init_timestep
@@ -82,23 +65,15 @@ class InpaintingPipeline(DiffusionPipeline):
         timesteps = torch.tensor([timesteps] * batch_size, dtype=torch.long, device=self.device)
 
         # add noise to latents using the timesteps
-        noise = torch.randn(init_latents.shape, generator=generator, device=self.device)
-        init_latents = self.scheduler.add_noise(init_latents, noise, timesteps)
+        noise = torch.randn(init_image.shape, generator=generator, device=self.device)
+        init_image = self.scheduler.add_noise(init_image, noise, timesteps)
 
-        # get prompt text embeddings
-        text_input = self.tokenizer(
-            prompt,
-            padding="max_length",
-            max_length=self.tokenizer.model_max_length,
-            truncation=True,
-            return_tensors="pt",
-        )
-        text_embeddings = self.text_encoder(text_input.input_ids.to(self.device))[0]
+
 
         # here `guidance_scale` is defined analog to the guidance weight `w` of equation (2)
         # of the Imagen paper: https://arxiv.org/pdf/2205.11487.pdf . `guidance_scale = 1`
         # corresponds to doing no classifier free guidance.
-        do_classifier_free_guidance = guidance_scale > 1.0
+        do_classifier_free_guidance = False
         # get unconditional embeddings for classifier free guidance
         if do_classifier_free_guidance:
             max_length = text_input.input_ids.shape[-1]
@@ -121,7 +96,7 @@ class InpaintingPipeline(DiffusionPipeline):
         if accepts_eta:
             extra_step_kwargs["eta"] = eta
 
-        latents = init_latents
+        latents = init_image
         t_start = max(num_inference_steps - init_timestep + offset, 0)
         for i, t in tqdm(enumerate(self.scheduler.timesteps[t_start:])):
             # expand the latents if we are doing classifier free guidance
@@ -139,14 +114,10 @@ class InpaintingPipeline(DiffusionPipeline):
             latents = self.scheduler.step(noise_pred, t, latents, **extra_step_kwargs)["prev_sample"]
 
             # masking
-            init_latents_proper = self.scheduler.add_noise(init_latents_orig, noise, t)
+            init_latents_proper = self.scheduler.add_noise(init_image, noise, t)
             latents = (init_latents_proper * mask) + (latents * (1 - mask))
 
-        # scale and decode the image latents with vae
-        latents = 1 / 0.18215 * latents
-        image = self.vae.decode(latents).sample
-
-        image = (image / 2 + 0.5).clamp(0, 1)
+        image = (latents / 2 + 0.5).clamp(0, 1)
         image = image.cpu().permute(0, 2, 3, 1).numpy()
 
         if output_type == "pil":
