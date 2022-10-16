@@ -1,7 +1,7 @@
 import torch.nn as nn
 import torch
-from ..utils import *
-from diffusers.models.embeddings.embeddings import GaussianFourierProjection, TimestepEmbedding, Timesteps
+from utils import *
+from diffusers.models.embeddings import GaussianFourierProjection, TimestepEmbedding, Timesteps
 from diffusers.models.unet_blocks import UNetMidBlock2D, get_down_block, get_up_block
 
 class UNet2DModel():

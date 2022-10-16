@@ -1,5 +1,8 @@
 from accelerate import Accelerator
 import os
+import sys
+sys.path.append('..')
+sys.path.append('.')
 import torch
 import torch.nn.functional as F
 from ..utils import *

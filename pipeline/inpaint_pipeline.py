@@ -1,8 +1,12 @@
+from sched import scheduler
 import torch
+import sys
+sys.path.append('..')
+sys.path.append('.')
 from diffusers import DiffusionPipeline
-from ..utils import *
-from ..model.unet import UNet2DModel
-from ..schedule.ddim_schedule import DDIM_schedule
+from utils import *
+from model.unet import UNet2DModel
+from schedule.ddim_schedule import DDIM_schedule
 
 class InpaintingPipeline(DiffusionPipeline):
     def __init__(
