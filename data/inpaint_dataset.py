@@ -8,18 +8,18 @@ from torch.utils.data import Dataset
 from torch.utils.data import DataLoader
 
 
-class cond_dataset(Dataset):
+class In_mouth_pic(Dataset):
     def __init__(self, img_size=256, train=False):
         #print(data_path, train_path, tid)
         
-        data_path = '/mnt/share/shenfeihong/data/video_diff/nturgb/image'
-        self.all_files = glob.glob(os.path.join(data_path,'*/frame*.jpg'), recursive=False)
+        data_path = '/mnt/share/shenfeihong/data/abrasion/in_mouth_pic'
+        self.all_files = glob.glob(os.path.join(data_path,'*/*/lower.jpg'), recursive=False)[10:]
         if not train:
             print('eval')
-            self.all_files = glob.glob(os.path.join(data_path,'*/frame*.jpg'), recursive=False)[:20]
+            self.all_files = glob.glob(os.path.join(data_path,'*/*/lower.jpg'), recursive=False)[:10]
         self.transform = transforms.Compose(
                             [
-                                transforms.Resize([256, 256]),
+                                transforms.RandomCrop(size=(64, 64)),
                                 transforms.ToTensor()
                             ]
                         )
@@ -33,19 +33,18 @@ class cond_dataset(Dataset):
         ske_file = frame_file.replace('frame','ske')
         
         frame = Image.open(frame_file)
-        ske = Image.open(ske_file)
+        # ske = Image.open(ske_file)
 
         img = self.transform(frame)*2-1
-        cond = self.transform(ske)
+        # cond = self.transform(ske)
 
-        return {'image': img,
-                'mask': cond}
+        return {'images': img}
 
 def get_loader(train=False):
-    dataset = cond_dataset(train=train)
+    dataset = In_mouth_pic(train=train)
     loader = DataLoader(
         dataset=dataset,
-        batch_size=4,
+        batch_size=1,
         num_workers=4,
         pin_memory=True,
     )

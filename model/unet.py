@@ -4,7 +4,7 @@ from utils import *
 from diffusers.models.embeddings import GaussianFourierProjection, TimestepEmbedding, Timesteps
 from diffusers.models.unet_blocks import UNetMidBlock2D, get_down_block, get_up_block
 
-class UNet2DModel():
+class UNet2DModel(torch.nn.Module):
     r"""
     UNet2DModel is a 2D UNet model that takes in a noisy sample and a timestep and returns sample shaped output.
     This model inherits from [`ModelMixin`]. Check the superclass documentation for the generic methods the library
@@ -54,6 +54,7 @@ class UNet2DModel():
         norm_num_groups: int = 32,
         norm_eps: float = 1e-5,
     ):
+        super().__init__()
         self.__dict__ = autoargs(self, locals())
         self.sample_size = sample_size
         time_embed_dim = block_out_channels[0] * 4

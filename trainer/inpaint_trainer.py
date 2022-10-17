@@ -5,14 +5,14 @@ sys.path.append('..')
 sys.path.append('.')
 import torch
 import torch.nn.functional as F
-from ..utils import *
-from ..pipeline.inpaint_pipeline import InpaintingPipeline
+from utils import *
+from pipeline.inpaint_pipeline import InpaintingPipeline
 class InpaintTrainer():
     def __init__(self) -> None:
         pass
-    def inference():
+    def inference(self):
         pass
-    def train_loop(config, model, noise_scheduler, optimizer, train_dataloader, lr_scheduler):
+    def train_loop(self, config, model, noise_scheduler, optimizer, train_dataloader, lr_scheduler):
         # Initialize accelerator and tensorboard logging
         accelerator = Accelerator(
             mixed_precision=config.mixed_precision,
@@ -36,7 +36,15 @@ class InpaintTrainer():
         for epoch in range(config.num_epochs):
             progress_bar = tqdm(total=len(train_dataloader), disable=not accelerator.is_local_main_process)
             progress_bar.set_description(f"Epoch {epoch}")
+            # After each epoch you optionally sample some demo images with evaluate() and save the model
+            if accelerator.is_main_process:
+                pipeline = InpaintingPipeline(unet=accelerator.unwrap_model(model), scheduler=noise_scheduler)
 
+                if (epoch + 1) % config.save_image_epochs == 0 or epoch == config.num_epochs - 1:
+                    evaluate(config, epoch, pipeline)
+
+                if (epoch + 1) % config.save_model_epochs == 0 or epoch == config.num_epochs - 1:
+                    pipeline.save_pretrained(config.output_dir) 
             for step, batch in enumerate(train_dataloader):
                 clean_images = batch['images']
                 # Sample noise to add to the images
@@ -67,12 +75,3 @@ class InpaintTrainer():
                 accelerator.log(logs, step=global_step)
                 global_step += 1
 
-            # After each epoch you optionally sample some demo images with evaluate() and save the model
-            if accelerator.is_main_process:
-                pipeline = InpaintingPipeline(unet=accelerator.unwrap_model(model), scheduler=noise_scheduler)
-
-                if (epoch + 1) % config.save_image_epochs == 0 or epoch == config.num_epochs - 1:
-                    evaluate(config, epoch, pipeline)
-
-                if (epoch + 1) % config.save_model_epochs == 0 or epoch == config.num_epochs - 1:
-                    pipeline.save_pretrained(config.output_dir) 

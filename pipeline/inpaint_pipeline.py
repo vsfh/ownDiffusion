@@ -15,14 +15,14 @@ class InpaintingPipeline(DiffusionPipeline):
         scheduler: DDIM_schedule,
     ):
         super().__init__()
-        scheduler = scheduler.set_format("pt")
+        # scheduler = scheduler.set_format("pt")
         self.register_modules(
             unet=unet,
             scheduler=scheduler
         )
 
     @torch.no_grad()
-    def __call__(
+    def inpaint(
         self,
         init_image: torch.FloatTensor,
         mask_image: torch.FloatTensor,
@@ -103,7 +103,7 @@ class InpaintingPipeline(DiffusionPipeline):
             latent_model_input = torch.cat([latents] * 2) if do_classifier_free_guidance else latents
 
             # predict the noise residual
-            noise_pred = self.unet(latent_model_input, t, encoder_hidden_states=text_embeddings)["sample"]
+            noise_pred = self.unet(latent_model_input, t)["sample"]
 
             # perform guidance
             if do_classifier_free_guidance:
@@ -124,3 +124,66 @@ class InpaintingPipeline(DiffusionPipeline):
             image = self.numpy_to_pil(image)
 
         return {"sample": image}
+    
+    @torch.no_grad()
+    def __call__(
+        self,
+        batch_size: int = 1,
+        generator: Optional[torch.Generator] = None,
+        eta: float = 0.0,
+        num_inference_steps: int = 50,
+        output_type: Optional[str] = "pil",
+        return_dict: bool = True,
+        **kwargs,
+    ):
+        r"""
+        Args:
+            batch_size (`int`, *optional*, defaults to 1):
+                The number of images to generate.
+            generator (`torch.Generator`, *optional*):
+                A [torch generator](https://pytorch.org/docs/stable/generated/torch.Generator.html) to make generation
+                deterministic.
+            eta (`float`, *optional*, defaults to 0.0):
+                The eta parameter which controls the scale of the variance (0 is DDIM and 1 is one type of DDPM).
+            num_inference_steps (`int`, *optional*, defaults to 50):
+                The number of denoising steps. More denoising steps usually lead to a higher quality image at the
+                expense of slower inference.
+            output_type (`str`, *optional*, defaults to `"pil"`):
+                The output format of the generate image. Choose between
+                [PIL](https://pillow.readthedocs.io/en/stable/): `PIL.Image.Image` or `np.array`.
+            return_dict (`bool`, *optional*, defaults to `True`):
+                Whether or not to return a [`~pipeline_utils.ImagePipelineOutput`] instead of a plain tuple.
+        Returns:
+            [`~pipeline_utils.ImagePipelineOutput`] or `tuple`: [`~pipelines.utils.ImagePipelineOutput`] if
+            `return_dict` is True, otherwise a `tuple. When returning a tuple, the first element is a list with the
+            generated images.
+        """
+
+        # Sample gaussian noise to begin loop
+        image = torch.randn(
+            (batch_size, self.unet.in_channels, self.unet.sample_size, self.unet.sample_size),
+            generator=generator,
+        )
+        image = image.cuda()
+
+        # set step values
+        self.scheduler.set_timesteps(num_inference_steps)
+
+        for t in self.progress_bar(self.scheduler.timesteps):
+            # 1. predict noise model_output
+            model_output = self.unet(image, t)['sample']
+
+            # 2. predict previous mean of image x_t-1 and add variance depending on eta
+            # eta corresponds to η in paper and should be between [0, 1]
+            # do x_t -> x_t-1
+            image = self.scheduler.step(model_output, t, image, eta)['prev_sample']
+
+        image = (image / 2 + 0.5).clamp(0, 1)
+        image = image.cpu().permute(0, 2, 3, 1).numpy()
+        if output_type == "pil":
+            image = self.numpy_to_pil(image)
+
+        if not return_dict:
+            return (image,)
+
+        return {'sample':image}
