@@ -131,7 +131,7 @@ class InpaintingPipeline(DiffusionPipeline):
         batch_size: int = 1,
         generator: Optional[torch.Generator] = None,
         eta: float = 0.0,
-        num_inference_steps: int = 50,
+        num_inference_steps: int = 1000,
         output_type: Optional[str] = "pil",
         return_dict: bool = True,
         **kwargs,

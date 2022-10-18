@@ -13,10 +13,10 @@ class In_mouth_pic(Dataset):
         #print(data_path, train_path, tid)
         
         data_path = '/mnt/share/shenfeihong/data/abrasion/in_mouth_pic'
-        self.all_files = glob.glob(os.path.join(data_path,'*/*/lower.jpg'), recursive=False)[10:]
+        self.all_files = glob.glob(os.path.join(data_path,'*/*/*/*.jpg'), recursive=False)[10:]
         if not train:
             print('eval')
-            self.all_files = glob.glob(os.path.join(data_path,'*/*/lower.jpg'), recursive=False)[:10]
+            self.all_files = glob.glob(os.path.join(data_path,'*/*/*/*.jpg'), recursive=False)[:10]
         self.transform = transforms.Compose(
                             [
                                 transforms.RandomCrop(size=(64, 64)),
