@@ -1,4 +1,4 @@
-from sched import scheduler
+import importlib
 import torch
 import sys
 sys.path.append('..')
@@ -7,6 +7,21 @@ from diffusers import DiffusionPipeline
 from utils import *
 from model.unet import UNet2DModel
 from schedule.ddim_schedule import DDIM_schedule
+
+LOADABLE_CLASSES = {
+    "diffusers": {
+        "ModelMixin": ["save_pretrained", "from_pretrained"],
+        "SchedulerMixin": ["save_config", "from_config"],
+        "DiffusionPipeline": ["save_pretrained", "from_pretrained"],
+        "OnnxRuntimeModel": ["save_pretrained", "from_pretrained"],
+    },
+    "transformers": {
+        "PreTrainedTokenizer": ["save_pretrained", "from_pretrained"],
+        "PreTrainedTokenizerFast": ["save_pretrained", "from_pretrained"],
+        "PreTrainedModel": ["save_pretrained", "from_pretrained"],
+        "FeatureExtractionMixin": ["save_pretrained", "from_pretrained"],
+    },
+}
 
 class InpaintingPipeline(DiffusionPipeline):
     def __init__(
@@ -70,48 +85,19 @@ class InpaintingPipeline(DiffusionPipeline):
 
 
 
-        # here `guidance_scale` is defined analog to the guidance weight `w` of equation (2)
-        # of the Imagen paper: https://arxiv.org/pdf/2205.11487.pdf . `guidance_scale = 1`
-        # corresponds to doing no classifier free guidance.
-        do_classifier_free_guidance = False
-        # get unconditional embeddings for classifier free guidance
-        if do_classifier_free_guidance:
-            max_length = text_input.input_ids.shape[-1]
-            uncond_input = self.tokenizer(
-                [""] * batch_size, padding="max_length", max_length=max_length, return_tensors="pt"
-            )
-            uncond_embeddings = self.text_encoder(uncond_input.input_ids.to(self.device))[0]
 
-            # For classifier free guidance, we need to do two forward passes.
-            # Here we concatenate the unconditional and text embeddings into a single batch
-            # to avoid doing two forward passes
-            text_embeddings = torch.cat([uncond_embeddings, text_embeddings])
 
-        # prepare extra kwargs for the scheduler step, since not all schedulers have the same signature
-        # eta (η) is only used with the DDIMScheduler, it will be ignored for other schedulers.
-        # eta corresponds to η in DDIM paper: https://arxiv.org/abs/2010.02502
-        # and should be between [0, 1]
-        accepts_eta = "eta" in set(inspect.signature(self.scheduler.step).parameters.keys())
-        extra_step_kwargs = {}
-        if accepts_eta:
-            extra_step_kwargs["eta"] = eta
+
 
         latents = init_image
         t_start = max(num_inference_steps - init_timestep + offset, 0)
         for i, t in tqdm(enumerate(self.scheduler.timesteps[t_start:])):
-            # expand the latents if we are doing classifier free guidance
-            latent_model_input = torch.cat([latents] * 2) if do_classifier_free_guidance else latents
 
             # predict the noise residual
-            noise_pred = self.unet(latent_model_input, t)["sample"]
-
-            # perform guidance
-            if do_classifier_free_guidance:
-                noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
-                noise_pred = noise_pred_uncond + guidance_scale * (noise_pred_text - noise_pred_uncond)
+            noise_pred = self.unet(latents, t)["sample"]
 
             # compute the previous noisy sample x_t -> x_t-1
-            latents = self.scheduler.step(noise_pred, t, latents, **extra_step_kwargs)["prev_sample"]
+            latents = self.scheduler.step(noise_pred, t, latents, eta)["prev_sample"]
 
             # masking
             init_latents_proper = self.scheduler.add_noise(init_image, noise, t)
@@ -131,7 +117,7 @@ class InpaintingPipeline(DiffusionPipeline):
         batch_size: int = 1,
         generator: Optional[torch.Generator] = None,
         eta: float = 0.0,
-        num_inference_steps: int = 1000,
+        num_inference_steps: int = 100,
         output_type: Optional[str] = "pil",
         return_dict: bool = True,
         **kwargs,
@@ -187,3 +173,31 @@ class InpaintingPipeline(DiffusionPipeline):
             return (image,)
 
         return {'sample':image}
+
+    def save_pretrained(self, save_directory: Union[str, os.PathLike]):
+        """
+        Save all variables of the pipeline that can be saved and loaded as well as the pipelines configuration file to
+        a directory. A pipeline variable can be saved and loaded if its class implements both a save and loading
+        method. The pipeline can easily be re-loaded using the `[`~DiffusionPipeline.from_pretrained`]` class method.
+        Arguments:
+            save_directory (`str` or `os.PathLike`):
+                Directory to which to save. Will be created if it doesn't exist.
+        """
+        self.unet.save_pretrained(save_directory)
+        
+    def load_pretrained(self, save_directory: Union[str, os.PathLike]):
+        """
+        Save all variables of the pipeline that can be saved and loaded as well as the pipelines configuration file to
+        a directory. A pipeline variable can be saved and loaded if its class implements both a save and loading
+        method. The pipeline can easily be re-loaded using the `[`~DiffusionPipeline.from_pretrained`]` class method.
+        Arguments:
+            save_directory (`str` or `os.PathLike`):
+                Directory to which to save. Will be created if it doesn't exist.
+        """
+        self.unet.load_pretrained(save_directory)
+if __name__=="__main__":
+    unet = UNet2DModel()
+    scheduler = DDIM_schedule()
+    pipeLine = InpaintingPipeline(unet, scheduler)
+    pipeLine.save_pretrained('./')
+    pipeLine.load_pretrained('./')

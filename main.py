@@ -8,7 +8,7 @@ from data.inpaint_dataset import get_loader
 from config.ddim_config import DDIM_TrainingConfig
 
 config = DDIM_TrainingConfig()
-dataloader = get_loader(train=True)
+dataloader = get_loader(config, train=True)
 
 scheduler = DDIM_schedule()
 model = UNet2DModel(

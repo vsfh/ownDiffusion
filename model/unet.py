@@ -4,6 +4,8 @@ from utils import *
 from diffusers.models.embeddings import GaussianFourierProjection, TimestepEmbedding, Timesteps
 from diffusers.models.unet_blocks import UNetMidBlock2D, get_down_block, get_up_block
 
+WEIGHTS_NAME='unet.pt'
+
 class UNet2DModel(torch.nn.Module):
     r"""
     UNet2DModel is a 2D UNet model that takes in a noisy sample and a timestep and returns sample shaped output.
@@ -142,6 +144,46 @@ class UNet2DModel(torch.nn.Module):
         self.conv_act = nn.SiLU()
         self.conv_out = nn.Conv2d(block_out_channels[0], out_channels, 3, padding=1)
 
+    def save_pretrained(
+        self,
+        save_directory: Union[str, os.PathLike],
+        is_main_process: bool = True,
+        save_function: Callable = torch.save,
+    ):
+        """
+        Save a model and its configuration file to a directory, so that it can be re-loaded using the
+        `[`~modeling_utils.ModelMixin.from_pretrained`]` class method.
+        Arguments:
+            save_directory (`str` or `os.PathLike`):
+                Directory to which to save. Will be created if it doesn't exist.
+            is_main_process (`bool`, *optional*, defaults to `True`):
+                Whether the process calling this is the main process or not. Useful when in distributed training like
+                TPUs and need to call this function on all processes. In this case, set `is_main_process=True` only on
+                the main process to avoid race conditions.
+            save_function (`Callable`):
+                The function to use to save the state dictionary. Useful on distributed training like TPUs when one
+                need to replace `torch.save` by another method.
+        """
+        if os.path.isfile(save_directory):
+            print(f"Provided path ({save_directory}) should be a directory, not a file")
+            return
+
+        os.makedirs(save_directory, exist_ok=True)
+
+        model_to_save = self
+
+        # Save the model
+        state_dict = model_to_save.state_dict()
+
+        # Save the model
+        save_function(state_dict, os.path.join(save_directory, WEIGHTS_NAME))
+
+        print(f"Model weights saved in {os.path.join(save_directory, WEIGHTS_NAME)}")
+    def load_pretrained(
+        self,
+        save_directory: Union[str, os.PathLike],
+    ):
+        self.load_state_dict(torch.load(os.path.join(save_directory, WEIGHTS_NAME), map_location=torch.device('cpu')),strict=False)     
     def forward(
         self,
         sample: torch.FloatTensor,

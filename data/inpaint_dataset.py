@@ -40,11 +40,11 @@ class In_mouth_pic(Dataset):
 
         return {'images': img}
 
-def get_loader(train=False):
+def get_loader(args, train=False):
     dataset = In_mouth_pic(train=train)
     loader = DataLoader(
         dataset=dataset,
-        batch_size=1,
+        batch_size=args.train_batch_size,
         num_workers=4,
         pin_memory=True,
     )

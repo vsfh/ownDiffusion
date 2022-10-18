@@ -1,6 +1,6 @@
 import math
 import torch
-from typing import Optional, Tuple, Union
+from typing import Callable, List, Optional, Tuple, Union
 import os
 
 def autoargs(self: object, locals: object) -> dict:

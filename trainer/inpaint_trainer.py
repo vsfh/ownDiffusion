@@ -40,11 +40,14 @@ class InpaintTrainer():
             if accelerator.is_main_process:
                 pipeline = InpaintingPipeline(unet=accelerator.unwrap_model(model), scheduler=noise_scheduler)
 
+                if epoch == 0:
+                    pipeline.load_pretrained(config.output_dir)
+                    
                 if (epoch + 1) % config.save_image_epochs == 0 or epoch == config.num_epochs - 1:
                     evaluate(config, epoch, pipeline)
 
-                # if (epoch + 1) % config.save_model_epochs == 0 or epoch == config.num_epochs - 1:
-                #     pipeline.save_pretrained(config.output_dir) 
+                if (epoch + 1) % config.save_model_epochs == 0 or epoch == config.num_epochs - 1:
+                    pipeline.save_pretrained(config.output_dir) 
             for step, batch in enumerate(train_dataloader):
                 clean_images = batch['images']
                 # Sample noise to add to the images
