@@ -36,6 +36,7 @@ class InpaintingPipeline(DiffusionPipeline):
             scheduler=scheduler
         )
 
+
     @torch.no_grad()
     def inpaint(
         self,
@@ -49,61 +50,32 @@ class InpaintingPipeline(DiffusionPipeline):
         output_type: Optional[str] = "pil",
     ):
 
-        batch_size = init_image.shape[0]
-
-
-        # set timesteps
-        accepts_offset = "offset" in set(inspect.signature(self.scheduler.set_timesteps).parameters.keys())
-        extra_set_kwargs = {}
-        offset = 0
-        if accepts_offset:
-            offset = 1
-            extra_set_kwargs["offset"] = 1
-
-        self.scheduler.set_timesteps(num_inference_steps, **extra_set_kwargs)
-
         # preprocess image
-        init_image = preprocess_image(init_image).to(self.device)
+        image = preprocess_image(init_image)[None].cuda()
+        init_image = image
 
         # preprocess mask
-        mask = preprocess_mask(mask_image).to(self.device)
-        mask = torch.cat([mask] * batch_size)
+        mask = preprocess_mask(mask_image)[None].cuda()
 
         # check sizes
-        if not mask.shape == init_image.shape:
+        if not mask.shape == image.shape:
             raise ValueError(f"The mask and init_image should be the same size!")
 
-        # get the original timestep using init_timestep
-        init_timestep = int(num_inference_steps * strength) + offset
-        init_timestep = min(init_timestep, num_inference_steps)
-        timesteps = self.scheduler.timesteps[-init_timestep]
-        timesteps = torch.tensor([timesteps] * batch_size, dtype=torch.long, device=self.device)
-
-        # add noise to latents using the timesteps
-        noise = torch.randn(init_image.shape, generator=generator, device=self.device)
-        init_image = self.scheduler.add_noise(init_image, noise, timesteps)
-
-
-
-
-
-
-
-        latents = init_image
-        t_start = max(num_inference_steps - init_timestep + offset, 0)
-        for i, t in tqdm(enumerate(self.scheduler.timesteps[t_start:])):
+        self.scheduler.set_timesteps(num_inference_steps)
+        noise = torch.randn(image.shape, generator=generator).cuda()
+        for t in self.progress_bar(self.scheduler.timesteps):
 
             # predict the noise residual
-            noise_pred = self.unet(latents, t)["sample"]
+            noise_pred = self.unet(image, t)["sample"]
 
             # compute the previous noisy sample x_t -> x_t-1
-            latents = self.scheduler.step(noise_pred, t, latents, eta)["prev_sample"]
+            image = self.scheduler.step(noise_pred, t, image, eta)["prev_sample"]
 
             # masking
             init_latents_proper = self.scheduler.add_noise(init_image, noise, t)
-            latents = (init_latents_proper * mask) + (latents * (1 - mask))
+            image = (init_latents_proper * (1-mask)) + (image * (mask))
 
-        image = (latents / 2 + 0.5).clamp(0, 1)
+        image = (image / 2 + 0.5).clamp(0, 1)
         image = image.cpu().permute(0, 2, 3, 1).numpy()
 
         if output_type == "pil":
