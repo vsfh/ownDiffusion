@@ -12,7 +12,7 @@ from torch import autocast
 import cv2
 from matplotlib import pyplot as plt
 from pipeline.inpaint_pipeline import InpaintingPipeline
-
+import glob
 from model.unet import UNet2DModel
 from schedule.ddim_schedule import DDIM_schedule
 
@@ -154,9 +154,13 @@ with image_blocks as demo:
         with gr.Column():
             result = gr.Image(label="Result")
         btn.click(fn=predict, inputs=[radio, image], outputs=result)
+    gr.Examples(
+        examples=glob.glob("./example/*.jpg"),
+        inputs=image)
     gr.HTML(
             """
 
            """
         )
+    
 demo.launch(share=True)

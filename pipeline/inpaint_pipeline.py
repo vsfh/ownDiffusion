@@ -43,7 +43,7 @@ class InpaintingPipeline(DiffusionPipeline):
         init_image: torch.FloatTensor,
         mask_image: torch.FloatTensor,
         strength: float = 0.8,
-        num_inference_steps: Optional[int] = 50,
+        num_inference_steps: Optional[int] = 100,
         guidance_scale: Optional[float] = 7.5,
         eta: Optional[float] = 0.0,
         generator: Optional[torch.Generator] = None,
@@ -52,10 +52,9 @@ class InpaintingPipeline(DiffusionPipeline):
 
         # preprocess image
         image = preprocess_image(init_image)[None].cuda()
-        init_image = image
-
         # preprocess mask
         mask = preprocess_mask(mask_image)[None].cuda()
+        init_image = image
 
         # check sizes
         if not mask.shape == image.shape:
@@ -63,6 +62,7 @@ class InpaintingPipeline(DiffusionPipeline):
 
         self.scheduler.set_timesteps(num_inference_steps)
         noise = torch.randn(image.shape, generator=generator).cuda()
+        image = self.scheduler.add_noise(image, noise, self.scheduler.timesteps[0])
         for t in self.progress_bar(self.scheduler.timesteps):
 
             # predict the noise residual
