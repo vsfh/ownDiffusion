@@ -168,8 +168,11 @@ class InpaintingPipeline(DiffusionPipeline):
         """
         self.unet.load_pretrained(save_directory)
 if __name__=="__main__":
-    unet = UNet2DModel()
+    unet = UNet2DModel().cuda()
     scheduler = DDIM_schedule()
     pipeLine = InpaintingPipeline(unet, scheduler)
-    pipeLine.save_pretrained('./')
-    pipeLine.load_pretrained('./')
+    # pipeLine.save_pretrained('./')
+    # pipeLine.load_pretrained('./')
+    image = Image.open('/mnt/share/shenfeihong/data/abrasion/in_mouth_pic/001dwx010g/cls/lower/36.jpg')
+    mask = Image.open('/mnt/share/shenfeihong/data/abrasion/in_mouth_pic/001dwx010g/cls/lower/36.jpg')
+    output = pipeLine.inpaint(image, mask)
