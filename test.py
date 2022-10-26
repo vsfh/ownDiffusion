@@ -1,5 +1,3 @@
-import gradio as gr
-
 from io import BytesIO
 import requests
 import PIL
@@ -8,7 +6,7 @@ import numpy as np
 import os
 import uuid
 import torch
-from torch import autocast
+
 import cv2
 from matplotlib import pyplot as plt
 from pipeline.inpaint_pipeline import InpaintingPipeline

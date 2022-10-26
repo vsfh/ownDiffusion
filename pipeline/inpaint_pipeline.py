@@ -89,7 +89,7 @@ class InpaintingPipeline(DiffusionPipeline):
         batch_size: int = 1,
         generator: Optional[torch.Generator] = None,
         eta: float = 0.0,
-        num_inference_steps: int = 100,
+        num_inference_steps: int = 50,
         output_type: Optional[str] = "pil",
         return_dict: bool = True,
         **kwargs,
@@ -111,11 +111,14 @@ class InpaintingPipeline(DiffusionPipeline):
             # 2. predict previous mean of image x_t-1 and add variance depending on eta
             # eta corresponds to η in paper and should be between [0, 1]
             # do x_t -> x_t-1
-            sample = self.scheduler.step(model_output, t, image, eta)['prev_sample']
+            sample = self.scheduler.step(model_output, t, image, eta)
             image = sample['prev_sample']
+            
+            image1 = (image / 2 + 0.5).clamp(0, 1).cpu().permute(0, 2, 3, 1).numpy()
+            self.numpy_to_pil(image1)[0].save(f'/mnt/share/shenfeihong/data/test/ad_diff/img_{t}.png')
             pred_origin = sample['pred_original_sample']
             pred_origin = (pred_origin / 2 + 0.5).clamp(0, 1).cpu().permute(0, 2, 3, 1).numpy()
-            self.numpy_to_pil(pred_origin).save(f'{t}.png')
+            self.numpy_to_pil(pred_origin)[0].save(f'/mnt/share/shenfeihong/data/test/ad_diff/{t}.png')
 
         image = (image / 2 + 0.5).clamp(0, 1)
         image = image.cpu().permute(0, 2, 3, 1).numpy()

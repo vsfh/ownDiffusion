@@ -2,7 +2,10 @@
 
 ## ToDo
 
-- [ ] ddim pipeline
+- [x] ddim pipeline
 - [x] schedule
-- [ ] unet
-- [ ] trainer
+- [x] unet
+- [x] trainer
+- [ ] conditional unet
+- [ ] conditional dataset
+- [ ] conditional trainer
