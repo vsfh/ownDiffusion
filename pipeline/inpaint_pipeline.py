@@ -82,7 +82,52 @@ class InpaintingPipeline(DiffusionPipeline):
             image = self.numpy_to_pil(image)
 
         return {"sample": image}
-    
+ 
+    @torch.no_grad()
+    def test(
+        self,
+        batch_size: int = 1,
+        generator: Optional[torch.Generator] = None,
+        eta: float = 0.0,
+        num_inference_steps: int = 100,
+        output_type: Optional[str] = "pil",
+        return_dict: bool = True,
+        **kwargs,
+    ):
+        # Sample gaussian noise to begin loop
+        image = torch.randn(
+            (batch_size, self.unet.in_channels, self.unet.sample_size, self.unet.sample_size),
+            generator=generator,
+        )
+        image = image.cuda()
+
+        # set step values
+        self.scheduler.set_timesteps(num_inference_steps)
+
+        for t in self.progress_bar(self.scheduler.timesteps):
+            # 1. predict noise model_output
+            model_output = self.unet(image, t)['sample']
+
+            # 2. predict previous mean of image x_t-1 and add variance depending on eta
+            # eta corresponds to η in paper and should be between [0, 1]
+            # do x_t -> x_t-1
+            sample = self.scheduler.step(model_output, t, image, eta)['prev_sample']
+            image = sample['prev_sample']
+            pred_origin = sample['pred_original_sample']
+            pred_origin = (pred_origin / 2 + 0.5).clamp(0, 1).cpu().permute(0, 2, 3, 1).numpy()
+            self.numpy_to_pil(pred_origin).save(f'{t}.png')
+
+        image = (image / 2 + 0.5).clamp(0, 1)
+        image = image.cpu().permute(0, 2, 3, 1).numpy()
+        if output_type == "pil":
+            image = self.numpy_to_pil(image)
+
+        if not return_dict:
+            return (image,)
+
+        return {'sample':image}
+
+   
     @torch.no_grad()
     def __call__(
         self,
