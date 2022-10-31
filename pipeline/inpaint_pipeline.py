@@ -137,7 +137,7 @@ class InpaintingPipeline(DiffusionPipeline):
         batch_size: int = 1,
         generator: Optional[torch.Generator] = None,
         eta: float = 0.0,
-        num_inference_steps: int = 100,
+        num_inference_steps: int = 50,
         output_type: Optional[str] = "pil",
         return_dict: bool = True,
         **kwargs,
@@ -194,7 +194,7 @@ class InpaintingPipeline(DiffusionPipeline):
 
         return {'sample':image}
 
-    def save_pretrained(self, save_directory: Union[str, os.PathLike]):
+    def save_pretrained(self, save_directory: Union[str, os.PathLike], epoch):
         """
         Save all variables of the pipeline that can be saved and loaded as well as the pipelines configuration file to
         a directory. A pipeline variable can be saved and loaded if its class implements both a save and loading
@@ -203,7 +203,7 @@ class InpaintingPipeline(DiffusionPipeline):
             save_directory (`str` or `os.PathLike`):
                 Directory to which to save. Will be created if it doesn't exist.
         """
-        self.unet.save_pretrained(save_directory)
+        self.unet.save_pretrained(save_directory, epoch)
         
     def load_pretrained(self, save_directory: Union[str, os.PathLike]):
         """

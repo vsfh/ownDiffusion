@@ -147,6 +147,7 @@ class UNet2DModel(torch.nn.Module):
     def save_pretrained(
         self,
         save_directory: Union[str, os.PathLike],
+        epoch,
         is_main_process: bool = True,
         save_function: Callable = torch.save,
     ):
@@ -176,7 +177,7 @@ class UNet2DModel(torch.nn.Module):
         state_dict = model_to_save.state_dict()
 
         # Save the model
-        save_function(state_dict, os.path.join(save_directory, WEIGHTS_NAME))
+        save_function(state_dict, os.path.join(save_directory, f'{epoch}_'+WEIGHTS_NAME))
 
         print(f"Model weights saved in {os.path.join(save_directory, WEIGHTS_NAME)}")
     def load_pretrained(

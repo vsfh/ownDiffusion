@@ -12,7 +12,7 @@ dataloader = get_loader(config, train=True)
 
 scheduler = DDIM_schedule()
 model = UNet2DModel(
-    sample_size=64,  # the target image resolution
+    sample_size=config.image_size,  # the target image resolution
     in_channels=3,  # the number of input channels, 3 for RGB images
     out_channels=3,  # the number of output channels
     layers_per_block=2,  # how many ResNet layers to use per UNet block

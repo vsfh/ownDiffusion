@@ -9,17 +9,21 @@ from torch.utils.data import DataLoader
 
 
 class In_mouth_pic(Dataset):
-    def __init__(self, img_size=256, train=False):
+    def __init__(self, args, train=False):
         #print(data_path, train_path, tid)
         
-        data_path = '/mnt/share/shenfeihong/data/abrasion/in_mouth_pic'
-        self.all_files = glob.glob(os.path.join(data_path,'*/*/*/*.jpg'), recursive=False)[10:]
+
+        if args.data_type=='smile':
+            self.all_files = glob.glob('/mnt/share/shenfeihong/data/smile_ylc/*', recursive=False)[10:]
+        else:
+            data_path = '/mnt/share/shenfeihong/data/abrasion/in_mouth_pic'
+            self.all_files = glob.glob(os.path.join(data_path,'*/*/*/*.jpg'), recursive=False)[10:]
         if not train:
             print('eval')
             self.all_files = glob.glob(os.path.join(data_path,'*/*/*/*.jpg'), recursive=False)[:10]
         self.transform = transforms.Compose(
                             [
-                                transforms.RandomCrop(size=(64, 64)),
+                                transforms.RandomCrop(size=(args.image_size, args.image_size)),
                                 transforms.ToTensor()
                             ]
                         )
@@ -41,7 +45,7 @@ class In_mouth_pic(Dataset):
         return {'images': img}
 
 def get_loader(args, train=False):
-    dataset = In_mouth_pic(train=train)
+    dataset = In_mouth_pic(args, train=train)
     loader = DataLoader(
         dataset=dataset,
         batch_size=args.train_batch_size,
