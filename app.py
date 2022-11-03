@@ -15,9 +15,11 @@ from pipeline.inpaint_pipeline import InpaintingPipeline
 import glob
 from model.unet import UNet2DModel
 from schedule.ddim_schedule import DDIM_schedule
+from config.ddim_config import DDIM_TrainingConfig
 
+config = DDIM_TrainingConfig()
 auth_token = os.environ.get("API_TOKEN") or True
-
+img_size = 256
 def download_image(url):
     response = requests.get(url)
     return PIL.Image.open(BytesIO(response.content)).convert("RGB")
@@ -26,7 +28,7 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 
 scheduler = DDIM_schedule()
 model = UNet2DModel(
-    sample_size=64,  # the target image resolution
+    sample_size=img_size,  # the target image resolution
     in_channels=3,  # the number of input channels, 3 for RGB images
     out_channels=3,  # the number of output channels
     layers_per_block=2,  # how many ResNet layers to use per UNet block
@@ -52,17 +54,22 @@ pipe = InpaintingPipeline(
     unet=model,
     scheduler=scheduler
 )
-pipe.load_pretrained('/mnt/share/shenfeihong/weight/diffusion/ddim-in_mouth-64')
+epoch = 64
+pipe.load_pretrained('/mnt/share/shenfeihong/weight/diffusion/ddim-smile-256', epoch)
 
 
 def predict(radio, dict):
     if(radio == "draw a mask above"):
         with autocast("cuda"):
-            init_image = dict["image"].convert("RGB").resize((64, 64))
-            mask = dict["mask"].convert("RGB").resize((64, 64))
+            init_image = dict["image"].convert("RGB").resize((img_size, img_size))
+            mask = dict["mask"].convert("RGB").resize((img_size, img_size))
 
     with autocast("cuda"):
         images = pipe.inpaint(init_image=init_image, mask_image=mask, strength=0.8)["sample"]
+        # images = pipe(
+        #     batch_size = config.eval_batch_size, 
+        #     generator=torch.manual_seed(config.seed),
+        # )["sample"]
     return images[0]
 
 # examples = [[dict(image="init_image.png", mask="mask_image.png"), "A panda sitting on a bench"]]
@@ -163,4 +170,4 @@ with image_blocks as demo:
            """
         )
     
-demo.launch(share=True)
+demo.launch()

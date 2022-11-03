@@ -43,7 +43,7 @@ class InpaintingPipeline(DiffusionPipeline):
         init_image: torch.FloatTensor,
         mask_image: torch.FloatTensor,
         strength: float = 0.8,
-        num_inference_steps: Optional[int] = 100,
+        num_inference_steps: Optional[int] = 50,
         guidance_scale: Optional[float] = 7.5,
         eta: Optional[float] = 0.0,
         generator: Optional[torch.Generator] = None,
@@ -63,6 +63,7 @@ class InpaintingPipeline(DiffusionPipeline):
         self.scheduler.set_timesteps(num_inference_steps)
         noise = torch.randn(image.shape, generator=generator).cuda()
         image = self.scheduler.add_noise(image, noise, self.scheduler.timesteps[0])
+        step = self.scheduler.timesteps[0]-self.scheduler.timesteps[1]
         for t in self.progress_bar(self.scheduler.timesteps):
 
             # predict the noise residual
@@ -74,7 +75,21 @@ class InpaintingPipeline(DiffusionPipeline):
             # masking
             init_latents_proper = self.scheduler.add_noise(init_image, noise, t)
             image = (init_latents_proper * (1-mask)) + (image * (mask))
+            
+            if t != self.scheduler.timesteps[0]:
+                image = self.scheduler.add_noise_on_sample(image, noise, t, t+step)
+                # predict the noise residual
+                noise_pred = self.unet(image, t)["sample"]
 
+                # compute the previous noisy sample x_t -> x_t-1
+                image = self.scheduler.step(noise_pred, t, image, eta)["prev_sample"]
+
+                # masking
+                init_latents_proper = self.scheduler.add_noise(init_image, noise, t)
+                image = (init_latents_proper * (1-mask)) + (image * (mask))
+                
+                
+        image = (init_image * (1-mask)) + (image * (mask))
         image = (image / 2 + 0.5).clamp(0, 1)
         image = image.cpu().permute(0, 2, 3, 1).numpy()
 
@@ -205,7 +220,7 @@ class InpaintingPipeline(DiffusionPipeline):
         """
         self.unet.save_pretrained(save_directory, epoch)
         
-    def load_pretrained(self, save_directory: Union[str, os.PathLike]):
+    def load_pretrained(self, save_directory: Union[str, os.PathLike], epoch):
         """
         Save all variables of the pipeline that can be saved and loaded as well as the pipelines configuration file to
         a directory. A pipeline variable can be saved and loaded if its class implements both a save and loading
@@ -214,7 +229,7 @@ class InpaintingPipeline(DiffusionPipeline):
             save_directory (`str` or `os.PathLike`):
                 Directory to which to save. Will be created if it doesn't exist.
         """
-        self.unet.load_pretrained(save_directory)
+        self.unet.load_pretrained(save_directory, epoch)
 if __name__=="__main__":
     unet = UNet2DModel().cuda()
     scheduler = DDIM_schedule()

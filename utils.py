@@ -72,7 +72,7 @@ from tqdm.auto import tqdm
 from torchvision import transforms
 
 transform = transforms.Compose([
-    transforms.Resize((64, 64)),
+    transforms.Resize((256, 256)),
     transforms.ToTensor(),
 ])
 
@@ -84,3 +84,28 @@ def preprocess_image(image):
 def preprocess_mask(mask):
     mask = transform(mask)
     return mask
+
+def cifar():
+    import pickle
+    import cv2
+    with open('/home/disk/data/cifar-10-python/cifar-10-batches-py/data_batch_1', 'rb') as fo:
+        dict = pickle.load(fo, encoding='bytes')
+    print(dict.keys(), np.array(dict[b'data']).shape)
+    imgs = np.array(dict[b'data'])
+    for i in range(len(imgs)):
+        data = imgs[i]
+        img = np.zeros((32,32,3))
+        R = data[:1024]
+        G = data[1024:2048]
+        B = data[2048:]
+        img[...,0] = B.reshape(32,32)
+        img[...,1] = G.reshape(32,32)
+        img[...,2] = R.reshape(32,32)
+        img = np.array(img).astype(np.uint8)
+        print(img.shape)
+        cv2.imshow('img', img)
+        cv2.waitKey(0)
+    return dict
+
+if __name__=='__main__':
+    cifar()
