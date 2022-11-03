@@ -1,16 +1,26 @@
+from distutils.command.config import config
 import torch
 
+from trainer.karras_ve_trainer import KarrasVeTrainer
 from trainer.inpaint_trainer import InpaintTrainer
 from model.unet import UNet2DModel
 from schedule.ddim_schedule import DDIM_schedule
+from schedule.karras_ve_schedule import KarrasVeScheduler
 from diffusers.optimization import get_cosine_schedule_with_warmup
 from data.inpaint_dataset import get_loader
 from config.ddim_config import DDIM_TrainingConfig
+from config.sde_config import Karras_TrainingConfig
 
-config = DDIM_TrainingConfig()
+# config = DDIM_TrainingConfig()
+# trainer = InpaintTrainer()
+# scheduler = DDIM_schedule()
+scheduler = KarrasVeScheduler()
+config = Karras_TrainingConfig()
+trainer = KarrasVeTrainer()
+
 dataloader = get_loader(config, train=True)
 
-scheduler = DDIM_schedule()
+
 model = UNet2DModel(
     sample_size=config.image_size,  # the target image resolution
     in_channels=3,  # the number of input channels, 3 for RGB images
@@ -40,5 +50,5 @@ lr_scheduler = get_cosine_schedule_with_warmup(
     num_warmup_steps=config.lr_warmup_steps,
     num_training_steps=(len(dataloader) * config.num_epochs),
 )
-trainer = InpaintTrainer()
+
 trainer.train_loop(config, model=model, noise_scheduler=scheduler, optimizer=optimizer, train_dataloader=dataloader, lr_scheduler=lr_scheduler)

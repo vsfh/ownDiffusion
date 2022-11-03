@@ -183,8 +183,9 @@ class UNet2DModel(torch.nn.Module):
     def load_pretrained(
         self,
         save_directory: Union[str, os.PathLike],
+        epoch
     ):
-        self.load_state_dict(torch.load(os.path.join(save_directory, WEIGHTS_NAME), map_location=torch.device('cpu')),strict=False)     
+        self.load_state_dict(torch.load(os.path.join(save_directory, f'{epoch}_'+WEIGHTS_NAME), map_location=torch.device('cpu')),strict=False)     
     def forward(
         self,
         sample: torch.FloatTensor,

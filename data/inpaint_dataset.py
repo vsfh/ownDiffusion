@@ -14,7 +14,7 @@ class In_mouth_pic(Dataset):
         
 
         if args.data_type=='smile':
-            self.all_files = glob.glob('/mnt/share/shenfeihong/data/smile_ylc/*', recursive=False)[10:]
+            self.all_files = glob.glob('/mnt/share/shenfeihong/data/smile_train_8000/*/mouth.jpg', recursive=False)[10:]
         else:
             data_path = '/mnt/share/shenfeihong/data/abrasion/in_mouth_pic'
             self.all_files = glob.glob(os.path.join(data_path,'*/*/*/*.jpg'), recursive=False)[10:]

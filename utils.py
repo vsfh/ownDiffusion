@@ -51,6 +51,7 @@ def evaluate(config, epoch, pipeline):
     # The default pipeline output type is `List[PIL.Image]`
     images = pipeline(
         batch_size = config.eval_batch_size, 
+        num_inference_steps = config.num_inference_steps,
         generator=torch.manual_seed(config.seed),
     )["sample"]
 
